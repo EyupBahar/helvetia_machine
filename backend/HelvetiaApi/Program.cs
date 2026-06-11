@@ -4,6 +4,7 @@ using HelvetiaApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,8 +19,17 @@ if (string.IsNullOrWhiteSpace(rawConnection))
     throw new InvalidOperationException(
         "Set DATABASE_URL (Render: Add from Database) or ConnectionStrings__DefaultConnection.");
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(NormalizeConnectionString(rawConnection)));
+if (IsPostgresUrl(rawConnection))
+{
+    var dataSource = new NpgsqlDataSourceBuilder(rawConnection).Build();
+    builder.Services.AddSingleton(dataSource);
+    builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(dataSource));
+}
+else
+{
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(rawConnection));
+}
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<IFileStorageService, FileStorageService>();
@@ -174,20 +184,14 @@ app.Lifetime.ApplicationStarted.Register(() =>
     });
 });
 
+app.Lifetime.ApplicationStopped.Register(() =>
+{
+    var dataSource = app.Services.GetService<NpgsqlDataSource>();
+    dataSource?.Dispose();
+});
+
 app.Run();
 
-static string NormalizeConnectionString(string connection)
-{
-    if (!connection.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
-        && !connection.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
-        return connection;
-
-    var uri = new Uri(connection);
-    var userInfo = uri.UserInfo.Split(':', 2);
-    var username = Uri.UnescapeDataString(userInfo[0]);
-    var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
-    var database = uri.AbsolutePath.TrimStart('/');
-    var port = uri.Port > 0 ? uri.Port : 5432;
-
-    return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
-}
+static bool IsPostgresUrl(string connection) =>
+    connection.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+    || connection.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase);
