@@ -3,6 +3,8 @@ import AdminPanel from "@/components/admin/AdminPanel";
 import { api } from "@/lib/api";
 import { Category, SubCategory } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardPage() {
   let categories: Category[] = [];
   let subCategories: SubCategory[] = [];

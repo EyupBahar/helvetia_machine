@@ -31,6 +31,21 @@ export default function AdminPanel({
 
   const token = getToken()!;
 
+  const refreshData = async () => {
+    const [cats, subs] = await Promise.all([
+      api.categories.getAll(),
+      api.subCategories.getAll(),
+    ]);
+    setCategories(cats);
+    setSubCategories(subs);
+  };
+
+  useEffect(() => {
+    refreshData().catch(() => {
+      // Keep SSR fallback data if live refresh fails.
+    });
+  }, []);
+
   useEffect(() => {
     setCategories(initialCategories);
     setSubCategories(initialSubCategories);
@@ -250,6 +265,8 @@ export default function AdminPanel({
                       if (!confirm("Bu kategoriyi silmek istediğinize emin misiniz?")) return;
                       await api.categories.delete(c.id, token);
                       setCategories(categories.filter((x) => x.id !== c.id));
+                      const fresh = await api.subCategories.getAll();
+                      setSubCategories(fresh);
                       showSuccess("Kategori silindi.");
                     }}
                   >
@@ -342,6 +359,11 @@ export default function AdminPanel({
                       className="!px-3 !py-1 text-xs"
                       onClick={async () => {
                         if (!confirm("Bu alt kategoriyi silmek istediğinize emin misiniz?")) return;
+                        if (!s.id) {
+                          setError("Geçersiz kayıt. Liste yenileniyor...");
+                          await refreshData();
+                          return;
+                        }
                         const authToken = getToken();
                         if (!authToken) {
                           setError("Oturum süresi dolmuş. Lütfen tekrar giriş yapın.");
@@ -353,6 +375,7 @@ export default function AdminPanel({
                           showSuccess("Alt kategori silindi.");
                         } catch (err) {
                           setError(err instanceof Error ? err.message : "Silme başarısız.");
+                          await refreshData();
                         }
                       }}
                     >

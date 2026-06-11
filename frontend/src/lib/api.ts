@@ -5,6 +5,7 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
+    cache: "no-store",
     ...options,
     headers: {
       "Content-Type": "application/json",
