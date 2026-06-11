@@ -53,10 +53,28 @@ var corsOrigins = new List<string> { "http://localhost:3000" };
 if (!string.IsNullOrWhiteSpace(frontendUrl))
     corsOrigins.Add(frontendUrl.TrimEnd('/'));
 
+var extraOrigins = builder.Configuration["Cors:AllowedOrigins"]
+    ?? Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS");
+if (!string.IsNullOrWhiteSpace(extraOrigins))
+{
+    corsOrigins.AddRange(
+        extraOrigins.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    );
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
-        policy.WithOrigins(corsOrigins.ToArray())
+        policy.SetIsOriginAllowed(origin =>
+            {
+                if (corsOrigins.Contains(origin))
+                    return true;
+
+                if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                    return false;
+
+                return uri.Host.EndsWith(".onrender.com", StringComparison.OrdinalIgnoreCase);
+            })
             .AllowAnyHeader()
             .AllowAnyMethod());
 });
