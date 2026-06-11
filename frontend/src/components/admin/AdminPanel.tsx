@@ -8,6 +8,7 @@ import { getToken } from "@/lib/auth";
 import Button from "@/components/ui/Button";
 import FileUpload from "@/components/admin/FileUpload";
 import MultiImageEditor from "@/components/admin/MultiImageEditor";
+import { useCategories } from "@/context/CategoriesContext";
 
 type Tab = "categories" | "subcategories";
 
@@ -21,6 +22,7 @@ export default function AdminPanel({
   initialSubCategories,
 }: AdminPanelProps) {
   const router = useRouter();
+  const { refreshCategories } = useCategories();
   const [tab, setTab] = useState<Tab>("categories");
   const [categories, setCategories] = useState(initialCategories);
   const [subCategories, setSubCategories] = useState(initialSubCategories);
@@ -30,6 +32,11 @@ export default function AdminPanel({
   const [formResetKey, setFormResetKey] = useState(0);
 
   const token = getToken()!;
+
+  const syncSiteCatalog = async () => {
+    await refreshCategories();
+    router.refresh();
+  };
 
   const refreshData = async () => {
     const [cats, subs] = await Promise.all([
@@ -125,6 +132,7 @@ export default function AdminPanel({
         showSuccess("Kategori eklendi.");
       }
       resetCategoryForm();
+      await syncSiteCatalog();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Bir hata oluştu.");
     }
@@ -159,7 +167,7 @@ export default function AdminPanel({
       resetSubCategoryForm();
       const fresh = await api.subCategories.getAll();
       setSubCategories(fresh);
-      router.refresh();
+      await syncSiteCatalog();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Bir hata oluştu.");
     } finally {
@@ -267,6 +275,7 @@ export default function AdminPanel({
                       setCategories(categories.filter((x) => x.id !== c.id));
                       const fresh = await api.subCategories.getAll();
                       setSubCategories(fresh);
+                      await syncSiteCatalog();
                       showSuccess("Kategori silindi.");
                     }}
                   >
@@ -372,6 +381,7 @@ export default function AdminPanel({
                         try {
                           await api.subCategories.delete(s.id, authToken);
                           setSubCategories(subCategories.filter((x) => x.id !== s.id));
+                          await syncSiteCatalog();
                           showSuccess("Alt kategori silindi.");
                         } catch (err) {
                           setError(err instanceof Error ? err.message : "Silme başarısız.");

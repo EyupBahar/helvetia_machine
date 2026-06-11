@@ -2,6 +2,9 @@ import Header from "./Header";
 import Footer from "./Footer";
 import { api } from "@/lib/api";
 import { Category } from "@/lib/types";
+import { CategoriesProvider } from "@/context/CategoriesContext";
+
+export const dynamic = "force-dynamic";
 
 export default async function MainLayout({
   children,
@@ -16,10 +19,10 @@ export default async function MainLayout({
   }
 
   return (
-    <>
-      <Header categories={categories} />
+    <CategoriesProvider initialCategories={categories}>
+      <Header />
       <main className="flex-1">{children}</main>
       <Footer />
-    </>
+    </CategoriesProvider>
   );
 }

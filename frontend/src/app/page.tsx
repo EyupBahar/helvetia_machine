@@ -4,6 +4,8 @@ import Button from "@/components/ui/Button";
 import { Category } from "@/lib/types";
 import MediaPreview from "@/components/ui/MediaPreview";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   let categories: Category[] = [];
   try {

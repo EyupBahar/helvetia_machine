@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Category, SubCategory, SubCategoryImageInput } from "@/lib/types";
+import { SubCategory, SubCategoryImageInput } from "@/lib/types";
 import { api } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { useAuth } from "@/context/AuthContext";
+import { useCategories } from "@/context/CategoriesContext";
 import Button from "@/components/ui/Button";
 import MultiImageEditor from "@/components/admin/MultiImageEditor";
 import MediaPreview from "@/components/ui/MediaPreview";
@@ -15,14 +16,12 @@ interface SubCategoryGridProps {
   subCategories: SubCategory[];
   categorySlug: string;
   categoryName: string;
-  categories: Category[];
 }
 
 export default function SubCategoryGrid({
   subCategories: initialSubCategories,
   categorySlug,
   categoryName,
-  categories,
 }: SubCategoryGridProps) {
   const [subCategories, setSubCategories] = useState(initialSubCategories);
   const [editing, setEditing] = useState<SubCategory | null>(null);
@@ -35,6 +34,7 @@ export default function SubCategoryGrid({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { isAdmin } = useAuth();
+  const { categories, refreshCategories } = useCategories();
   const router = useRouter();
 
   const openEdit = (sub: SubCategory) => {
@@ -56,6 +56,11 @@ export default function SubCategoryGrid({
   const closeEdit = () => {
     setEditing(null);
     setError("");
+  };
+
+  const syncSiteCatalog = async () => {
+    await refreshCategories();
+    router.refresh();
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -85,7 +90,7 @@ export default function SubCategoryGrid({
           .filter((s) => s.categorySlug === categorySlug)
       );
       closeEdit();
-      router.refresh();
+      await syncSiteCatalog();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Güncelleme başarısız.");
     } finally {
@@ -106,7 +111,7 @@ export default function SubCategoryGrid({
     try {
       await api.subCategories.delete(sub.id, token);
       setSubCategories((prev) => prev.filter((s) => s.id !== sub.id));
-      router.refresh();
+      await syncSiteCatalog();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Silme başarısız.");
     } finally {

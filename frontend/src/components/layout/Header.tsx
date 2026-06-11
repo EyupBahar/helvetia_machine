@@ -2,12 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Category } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
-
-interface HeaderProps {
-  categories: Category[];
-}
+import { useCategories } from "@/context/CategoriesContext";
 
 const navLinks = [
   { href: "/", label: "Ana Sayfa" },
@@ -15,7 +11,8 @@ const navLinks = [
   { href: "/iletisim", label: "İletişim" },
 ];
 
-export default function Header({ categories }: HeaderProps) {
+export default function Header() {
+  const { categories } = useCategories();
   const [productsOpen, setProductsOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isAdmin, logout } = useAuth();

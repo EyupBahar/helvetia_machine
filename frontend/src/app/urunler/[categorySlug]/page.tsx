@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { api } from "@/lib/api";
 import SubCategoryGrid from "@/components/products/SubCategoryGrid";
 
+export const dynamic = "force-dynamic";
+
 interface Props {
   params: Promise<{ categorySlug: string }>;
 }
@@ -12,13 +14,11 @@ export default async function CategoryPage({ params }: Props) {
 
   let category;
   let subCategories;
-  let categories;
 
   try {
-    [category, subCategories, categories] = await Promise.all([
+    [category, subCategories] = await Promise.all([
       api.categories.getBySlug(categorySlug),
       api.subCategories.getAll(categorySlug),
-      api.categories.getAll(),
     ]);
   } catch {
     notFound();
@@ -35,7 +35,6 @@ export default async function CategoryPage({ params }: Props) {
         subCategories={subCategories}
         categorySlug={categorySlug}
         categoryName={category.name}
-        categories={categories}
       />
     </div>
   );
