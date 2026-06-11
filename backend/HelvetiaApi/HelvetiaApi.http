@@ -1,0 +1,6 @@
+@HelvetiaApi_HostAddress = http://localhost:5169
+
+GET {{HelvetiaApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

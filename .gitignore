@@ -1,0 +1,28 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Frontend (Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel/
+frontend/npm-debug.log*
+frontend/.pnpm-debug.log*
+
+# Backend (.NET)
+backend/**/bin/
+backend/**/obj/
+backend/**/wwwroot/uploads/
+
+# IDE
+.vscode/
+.idea/
+*.user
+*.suo

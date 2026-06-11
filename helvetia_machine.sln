@@ -1,0 +1,29 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "backend", "backend", "{1AE8ACA6-933B-BF2A-3671-3E2EAC007D16}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelvetiaApi", "backend\HelvetiaApi\HelvetiaApi.csproj", "{EF37777E-AF03-D05B-40A5-BBC7A577CBFB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EF37777E-AF03-D05B-40A5-BBC7A577CBFB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF37777E-AF03-D05B-40A5-BBC7A577CBFB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF37777E-AF03-D05B-40A5-BBC7A577CBFB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF37777E-AF03-D05B-40A5-BBC7A577CBFB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{EF37777E-AF03-D05B-40A5-BBC7A577CBFB} = {1AE8ACA6-933B-BF2A-3671-3E2EAC007D16}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2456F250-597F-49AB-BF2F-421D50661F5C}
+	EndGlobalSection
+EndGlobal
