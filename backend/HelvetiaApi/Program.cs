@@ -82,17 +82,6 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 var appConfiguration = app.Configuration;
 
-try
-{
-    using var scope = app.Services.CreateScope();
-    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await DbSeeder.SeedAsync(context);
-}
-catch (Exception ex)
-{
-    app.Logger.LogError(ex, "Database seed failed. Check ConnectionStrings__DefaultConnection.");
-}
-
 app.UseCors("Frontend");
 
 app.UseExceptionHandler(errorApp =>
@@ -167,6 +156,24 @@ app.MapGet("/health/db", async (AppDbContext db) =>
     }
 });
 
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await DbSeeder.SeedAsync(context);
+            app.Logger.LogInformation("Database seed completed.");
+        }
+        catch (Exception ex)
+        {
+            app.Logger.LogError(ex, "Database seed failed.");
+        }
+    });
+});
+
 app.Run();
 
 static string NormalizeConnectionString(string connection)
@@ -181,10 +188,6 @@ static string NormalizeConnectionString(string connection)
     var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
     var database = uri.AbsolutePath.TrimStart('/');
     var port = uri.Port > 0 ? uri.Port : 5432;
-    var host = uri.Host;
 
-    if (host.StartsWith("dpg-", StringComparison.OrdinalIgnoreCase) && !host.Contains('.'))
-        host = $"{host}.frankfurt-postgres.render.com";
-
-    return $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+    return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
 }
