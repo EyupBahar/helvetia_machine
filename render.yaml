@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: helvetia-machine
+    runtime: docker
+    rootDir: backend/HelvetiaApi
+    dockerfilePath: Dockerfile
+    disk:
+      name: helvetia-uploads
+      mountPath: /app/wwwroot/uploads
+      sizeGB: 1

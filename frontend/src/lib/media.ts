@@ -1,7 +1,23 @@
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5001/api").replace(/\/api\/?$/, "");
+
+export function resolveMediaUrl(url: string): string {
+  if (!url) return url;
+
+  if (url.startsWith("/uploads/")) {
+    return `${API_ORIGIN}${url}`;
+  }
+
+  if (url.startsWith("http://")) {
+    return `https://${url.slice("http://".length)}`;
+  }
+
+  return url;
+}
+
 export function isPdfFile(url: string): boolean {
   if (!url) return false;
   try {
-    const path = new URL(url).pathname.toLowerCase();
+    const path = new URL(resolveMediaUrl(url)).pathname.toLowerCase();
     return path.endsWith(".pdf");
   } catch {
     return url.toLowerCase().endsWith(".pdf");

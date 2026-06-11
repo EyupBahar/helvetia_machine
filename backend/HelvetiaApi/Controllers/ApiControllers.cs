@@ -32,7 +32,10 @@ public class AuthController(IAuthService authService) : ControllerBase
 
 [ApiController]
 [Route("api/[controller]")]
-public class CategoriesController(AppDbContext context, IFileStorageService imageStorage) : ControllerBase
+public class CategoriesController(
+    AppDbContext context,
+    IFileStorageService imageStorage,
+    IMediaUrlService mediaUrls) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CategoryDto>>> GetAll()
@@ -42,7 +45,7 @@ public class CategoriesController(AppDbContext context, IFileStorageService imag
             .Select(c => new CategoryDto(c.Id, c.Name, c.Slug, c.Description, c.ImageUrl))
             .ToListAsync();
 
-        return Ok(categories);
+        return Ok(categories.Select(c => MapCategory(c)));
     }
 
     [HttpGet("{slug}")]
@@ -54,7 +57,7 @@ public class CategoriesController(AppDbContext context, IFileStorageService imag
         if (category is null)
             return NotFound();
 
-        return Ok(new CategoryDto(category.Id, category.Name, category.Slug, category.Description, category.ImageUrl));
+        return Ok(MapCategory(category));
     }
 
     [Authorize(Roles = "Admin")]
@@ -71,14 +74,13 @@ public class CategoriesController(AppDbContext context, IFileStorageService imag
             Name = request.Name,
             Slug = slug,
             Description = request.Description,
-            ImageUrl = request.ImageUrl ?? string.Empty
+            ImageUrl = mediaUrls.ToStoredPath(request.ImageUrl)
         };
 
         context.Categories.Add(category);
         await context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetBySlug), new { slug = category.Slug },
-            new CategoryDto(category.Id, category.Name, category.Slug, category.Description, category.ImageUrl));
+        return CreatedAtAction(nameof(GetBySlug), new { slug = category.Slug }, MapCategory(category));
     }
 
     [Authorize(Roles = "Admin")]
@@ -89,17 +91,18 @@ public class CategoriesController(AppDbContext context, IFileStorageService imag
         if (category is null)
             return NotFound();
 
-        if (category.ImageUrl != (request.ImageUrl ?? string.Empty))
+        var nextImageUrl = mediaUrls.ToStoredPath(request.ImageUrl);
+        if (category.ImageUrl != nextImageUrl)
             imageStorage.DeleteByUrl(category.ImageUrl);
 
         category.Name = request.Name;
         category.Slug = DbSeeder.GenerateSlug(request.Name);
         category.Description = request.Description;
-        category.ImageUrl = request.ImageUrl ?? string.Empty;
+        category.ImageUrl = nextImageUrl;
 
         await context.SaveChangesAsync();
 
-        return Ok(new CategoryDto(category.Id, category.Name, category.Slug, category.Description, category.ImageUrl));
+        return Ok(MapCategory(category));
     }
 
     [Authorize(Roles = "Admin")]
@@ -116,11 +119,28 @@ public class CategoriesController(AppDbContext context, IFileStorageService imag
 
         return NoContent();
     }
+
+    private CategoryDto MapCategory(Category category) => new(
+        category.Id,
+        category.Name,
+        category.Slug,
+        category.Description,
+        mediaUrls.ToPublicUrl(category.ImageUrl));
+
+    private CategoryDto MapCategory(CategoryDto category) => new(
+        category.Id,
+        category.Name,
+        category.Slug,
+        category.Description,
+        mediaUrls.ToPublicUrl(category.ImageUrl));
 }
 
 [ApiController]
 [Route("api/[controller]")]
-public class SubCategoriesController(AppDbContext context, IFileStorageService imageStorage) : ControllerBase
+public class SubCategoriesController(
+    AppDbContext context,
+    IFileStorageService imageStorage,
+    IMediaUrlService mediaUrls) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<SubCategoryDto>>> GetAll([FromQuery] string? categorySlug)
@@ -236,18 +256,18 @@ public class SubCategoriesController(AppDbContext context, IFileStorageService i
         }
     }
 
-    private static SubCategoryDto MapToDto(SubCategory s) => new(
+    private SubCategoryDto MapToDto(SubCategory s) => new(
         s.Id, s.Name, s.Slug, s.Description,
         s.CategoryId, s.Category.Name, s.Category.Slug,
         s.Images.OrderBy(i => i.SortOrder).Select(i => new SubCategoryImageDto(
-            i.Id, i.Title, i.Description, i.ImageUrl, i.SortOrder)).ToList());
+            i.Id, i.Title, i.Description, mediaUrls.ToPublicUrl(i.ImageUrl), i.SortOrder)).ToList());
 
-    private static List<SubCategoryImage> MapInputImages(List<SubCategoryImageInput>? images) =>
+    private List<SubCategoryImage> MapInputImages(List<SubCategoryImageInput>? images) =>
         (images ?? []).Select((img, index) => new SubCategoryImage
         {
             Title = img.Title,
             Description = img.Description,
-            ImageUrl = img.ImageUrl,
+            ImageUrl = mediaUrls.ToStoredPath(img.ImageUrl),
             SortOrder = index
         }).ToList();
 
@@ -270,12 +290,13 @@ public class SubCategoriesController(AppDbContext context, IFileStorageService i
                 var existing = subCategory.Images.FirstOrDefault(i => i.Id == input.Id);
                 if (existing is null) continue;
 
-                if (existing.ImageUrl != input.ImageUrl)
+                var nextImageUrl = mediaUrls.ToStoredPath(input.ImageUrl);
+                if (existing.ImageUrl != nextImageUrl)
                     imageStorage.DeleteByUrl(existing.ImageUrl);
 
                 existing.Title = input.Title;
                 existing.Description = input.Description;
-                existing.ImageUrl = input.ImageUrl;
+                existing.ImageUrl = nextImageUrl;
                 existing.SortOrder = index;
             }
             else
@@ -284,7 +305,7 @@ public class SubCategoriesController(AppDbContext context, IFileStorageService i
                 {
                     Title = input.Title,
                     Description = input.Description,
-                    ImageUrl = input.ImageUrl,
+                    ImageUrl = mediaUrls.ToStoredPath(input.ImageUrl),
                     SortOrder = index
                 });
             }

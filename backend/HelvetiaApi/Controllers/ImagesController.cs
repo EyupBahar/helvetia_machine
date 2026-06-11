@@ -7,7 +7,7 @@ namespace HelvetiaApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ImagesController(IFileStorageService fileStorage) : ControllerBase
+public class ImagesController(IFileStorageService fileStorage, IMediaUrlService mediaUrls) : ControllerBase
 {
     [Authorize(Roles = "Admin")]
     [HttpPost]
@@ -17,7 +17,7 @@ public class ImagesController(IFileStorageService fileStorage) : ControllerBase
         try
         {
             var result = await fileStorage.SaveAsync(file, Request);
-            return Ok(result);
+            return Ok(new UploadImageResponse(mediaUrls.ToPublicUrl(result.Url)));
         }
         catch (InvalidOperationException ex)
         {

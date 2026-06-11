@@ -167,6 +167,16 @@ public static class DbSeeder
         }
 
         await context.Database.ExecuteSqlRawAsync("""DROP TABLE IF EXISTS "Products";""");
+
+        await context.Database.ExecuteSqlRawAsync("""
+            UPDATE "Categories"
+            SET "ImageUrl" = regexp_replace("ImageUrl", '^https?://[^/]+(/uploads/.+)$', '\1')
+            WHERE "ImageUrl" LIKE '%/uploads/%' AND "ImageUrl" NOT LIKE '/uploads/%';
+
+            UPDATE "SubCategoryImages"
+            SET "ImageUrl" = regexp_replace("ImageUrl", '^https?://[^/]+(/uploads/.+)$', '\1')
+            WHERE "ImageUrl" LIKE '%/uploads/%' AND "ImageUrl" NOT LIKE '/uploads/%';
+            """);
     }
 
     public static string GenerateSlug(string text)

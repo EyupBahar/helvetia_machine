@@ -41,8 +41,7 @@ public class FileStorageService(IWebHostEnvironment environment) : IFileStorageS
         await using var stream = new FileStream(filePath, FileMode.Create);
         await file.CopyToAsync(stream);
 
-        var url = $"{request.Scheme}://{request.Host}/uploads/{fileName}";
-        return new UploadImageResponse(url);
+        return new UploadImageResponse($"/uploads/{fileName}");
     }
 
     public bool DeleteByUrl(string? url)
@@ -50,7 +49,10 @@ public class FileStorageService(IWebHostEnvironment environment) : IFileStorageS
         if (!IsLocalUpload(url))
             return false;
 
-        var fileName = Path.GetFileName(new Uri(url!).LocalPath);
+        var path = url!.StartsWith('/')
+            ? url
+            : new Uri(url).AbsolutePath;
+        var fileName = Path.GetFileName(path);
         var filePath = Path.Combine(UploadDirectory, fileName);
 
         if (!File.Exists(filePath))
