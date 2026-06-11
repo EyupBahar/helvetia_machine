@@ -14,14 +14,12 @@ if (!string.IsNullOrEmpty(port))
 var rawConnection = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? Environment.GetEnvironmentVariable("DATABASE_URL");
 
-var connectionString = ConvertDatabaseUrl(rawConnection) ?? rawConnection;
-
-if (string.IsNullOrWhiteSpace(connectionString))
+if (string.IsNullOrWhiteSpace(rawConnection))
     throw new InvalidOperationException(
         "Set DATABASE_URL (Render: Add from Database) or ConnectionStrings__DefaultConnection.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(NormalizeConnectionString(rawConnection)));
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<IFileStorageService, FileStorageService>();
@@ -171,21 +169,22 @@ app.MapGet("/health/db", async (AppDbContext db) =>
 
 app.Run();
 
-static string? ConvertDatabaseUrl(string? databaseUrl)
+static string NormalizeConnectionString(string connection)
 {
-    if (string.IsNullOrWhiteSpace(databaseUrl))
-        return null;
+    if (!connection.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+        && !connection.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+        return connection;
 
-    if (!databaseUrl.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
-        && !databaseUrl.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
-        return databaseUrl;
-
-    var uri = new Uri(databaseUrl);
+    var uri = new Uri(connection);
     var userInfo = uri.UserInfo.Split(':', 2);
     var username = Uri.UnescapeDataString(userInfo[0]);
     var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
     var database = uri.AbsolutePath.TrimStart('/');
     var port = uri.Port > 0 ? uri.Port : 5432;
+    var host = uri.Host;
 
-    return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+    if (host.StartsWith("dpg-", StringComparison.OrdinalIgnoreCase) && !host.Contains('.'))
+        host = $"{host}.frankfurt-postgres.render.com";
+
+    return $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
 }
