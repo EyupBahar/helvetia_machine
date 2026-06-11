@@ -12,8 +12,10 @@ var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(port))
     builder.WebHost.UseUrls($"http://*:{port}");
 
-var rawConnection = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+var rawConnection = !string.IsNullOrWhiteSpace(databaseUrl)
+    ? databaseUrl
+    : builder.Configuration.GetConnectionString("DefaultConnection");
 
 if (string.IsNullOrWhiteSpace(rawConnection))
     throw new InvalidOperationException(
@@ -21,7 +23,9 @@ if (string.IsNullOrWhiteSpace(rawConnection))
 
 if (IsPostgresUrl(rawConnection))
 {
-    var dataSource = new NpgsqlDataSourceBuilder(rawConnection).Build();
+    var dataSourceBuilder = new NpgsqlDataSourceBuilder(rawConnection);
+    ConfigureRenderSsl(dataSourceBuilder.ConnectionStringBuilder);
+    var dataSource = dataSourceBuilder.Build();
     builder.Services.AddSingleton(dataSource);
     builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(dataSource));
 }
@@ -90,7 +94,6 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
-var appConfiguration = app.Configuration;
 
 app.UseCors("Frontend");
 
@@ -140,29 +143,34 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapGet("/health/db", async (AppDbContext db) =>
 {
-    var hasDatabaseUrl = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DATABASE_URL"));
-    var hasConnectionString = !string.IsNullOrWhiteSpace(
-        appConfiguration.GetConnectionString("DefaultConnection"));
+    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+    var hasDatabaseUrl = !string.IsNullOrWhiteSpace(databaseUrl);
+    var dbHost = TryGetDatabaseHost(databaseUrl);
 
     try
     {
-        var ok = await db.Database.CanConnectAsync();
-        return ok
-            ? Results.Ok(new
-            {
-                database = "connected",
-                hasDatabaseUrl,
-                hasConnectionString,
-            })
-            : Results.Problem("Database connection failed.", statusCode: 503);
+        await db.Database.OpenConnectionAsync();
+        await db.Database.CloseConnectionAsync();
+        return Results.Ok(new
+        {
+            database = "connected",
+            hasDatabaseUrl,
+            host = dbHost,
+        });
     }
     catch (Exception ex)
     {
-        return Results.Problem(ex.Message, statusCode: 503, extensions: new Dictionary<string, object?>
-        {
-            ["hasDatabaseUrl"] = hasDatabaseUrl,
-            ["hasConnectionString"] = hasConnectionString,
-        });
+        return Results.Problem(
+            ex.InnerException?.Message ?? ex.Message,
+            statusCode: 503,
+            extensions: new Dictionary<string, object?>
+            {
+                ["hasDatabaseUrl"] = hasDatabaseUrl,
+                ["host"] = dbHost,
+                ["hint"] = hasDatabaseUrl
+                    ? "Check DATABASE_URL host/credentials and redeploy."
+                    : "Add DATABASE_URL via Environment → Add from Database → helvetia-db.",
+            });
     }
 });
 
@@ -195,3 +203,20 @@ app.Run();
 static bool IsPostgresUrl(string connection) =>
     connection.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
     || connection.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase);
+
+static string? TryGetDatabaseHost(string? databaseUrl)
+{
+    if (string.IsNullOrWhiteSpace(databaseUrl) || !IsPostgresUrl(databaseUrl))
+        return null;
+
+    return new Uri(databaseUrl).Host;
+}
+
+static void ConfigureRenderSsl(NpgsqlConnectionStringBuilder builder)
+{
+    var host = builder.Host ?? string.Empty;
+
+    // External Render URLs need TLS; internal private-network URLs use Prefer.
+    if (host.Contains(".render.com", StringComparison.OrdinalIgnoreCase))
+        builder.SslMode = SslMode.Require;
+}
