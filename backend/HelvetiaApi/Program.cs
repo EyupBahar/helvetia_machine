@@ -76,6 +76,34 @@ app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+app.MapGet("/", () => Results.Ok(new
+{
+    service = "Helvetia API",
+    status = "online",
+    endpoints = new
+    {
+        health = "/health",
+        database = "/health/db",
+        categories = "/api/categories",
+    }
+}));
+
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+
+app.MapGet("/health/db", async (AppDbContext db) =>
+{
+    try
+    {
+        var ok = await db.Database.CanConnectAsync();
+        return ok
+            ? Results.Ok(new { database = "connected" })
+            : Results.Problem("Database connection failed.", statusCode: 503);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 503);
+    }
+});
 
 app.Run();
