@@ -96,6 +96,20 @@ catch (Exception ex)
 }
 
 app.UseCors("Frontend");
+
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            message = "Sunucu hatası. DATABASE_URL ve Jwt__Key ayarlarını kontrol edin.",
+        });
+    });
+});
+
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -171,6 +185,7 @@ static string? ConvertDatabaseUrl(string? databaseUrl)
     var username = Uri.UnescapeDataString(userInfo[0]);
     var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
     var database = uri.AbsolutePath.TrimStart('/');
+    var port = uri.Port > 0 ? uri.Port : 5432;
 
-    return $"Host={uri.Host};Port={uri.Port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+    return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
 }

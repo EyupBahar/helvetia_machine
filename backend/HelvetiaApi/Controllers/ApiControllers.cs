@@ -15,11 +15,18 @@ public class AuthController(IAuthService authService) : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
     {
-        var result = await authService.LoginAsync(request);
-        if (result is null)
-            return Unauthorized(new { message = "Geçersiz kullanıcı adı veya şifre." });
+        try
+        {
+            var result = await authService.LoginAsync(request);
+            if (result is null)
+                return Unauthorized(new { message = "Geçersiz kullanıcı adı veya şifre." });
 
-        return Ok(result);
+            return Ok(result);
+        }
+        catch (Exception)
+        {
+            return StatusCode(503, new { message = "Veritabanı bağlantı hatası. DATABASE_URL ayarını kontrol edin." });
+        }
     }
 }
 
