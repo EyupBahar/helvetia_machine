@@ -26,3 +26,9 @@ backend/**/wwwroot/uploads/
 .idea/
 *.user
 *.suo
+
+# Logs & coverage
+logs/
+*.log
+coverage/
+*.tsbuildinfo
