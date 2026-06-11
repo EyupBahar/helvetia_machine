@@ -77,6 +77,18 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+app.MapGet("/api", () => Results.Ok(new
+{
+    message = "Helvetia API çalışıyor.",
+    endpoints = new[]
+    {
+        "/api/categories",
+        "/api/subcategories",
+        "/api/auth/login",
+        "/api/images",
+    }
+}));
+
 app.MapGet("/", () => Results.Ok(new
 {
     service = "Helvetia API",
