@@ -36,6 +36,16 @@ export default function AdminPanel({
     setSubCategories(initialSubCategories);
   }, [initialCategories, initialSubCategories]);
 
+  useEffect(() => {
+    if (categories.length === 0) return;
+
+    setSubCategoryForm((prev) => {
+      const hasValidCategory = categories.some((c) => c.id === prev.categoryId);
+      if (hasValidCategory) return prev;
+      return { ...prev, categoryId: categories[0].id };
+    });
+  }, [categories]);
+
   const showSuccess = (msg: string) => {
     setSuccess(msg);
     setTimeout(() => setSuccess(""), 3000);
@@ -108,6 +118,12 @@ export default function AdminPanel({
   const handleSubCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!subCategoryForm.categoryId) {
+      setError("Lütfen bir kategori seçin.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -267,10 +283,13 @@ export default function AdminPanel({
             />
             <select
               required
-              value={subCategoryForm.categoryId}
+              value={subCategoryForm.categoryId || ""}
               onChange={(e) => setSubCategoryForm({ ...subCategoryForm, categoryId: Number(e.target.value) })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
             >
+              <option value="" disabled>
+                Kategori seçin
+              </option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
