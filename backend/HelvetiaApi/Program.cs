@@ -11,12 +11,14 @@ var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(port))
     builder.WebHost.UseUrls($"http://*:{port}");
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? ConvertDatabaseUrl(Environment.GetEnvironmentVariable("DATABASE_URL"));
+var rawConnection = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+
+var connectionString = ConvertDatabaseUrl(rawConnection) ?? rawConnection;
 
 if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException(
-        "Set ConnectionStrings__DefaultConnection or link a Render PostgreSQL database (DATABASE_URL).");
+        "Set DATABASE_URL (Render: Add from Database) or ConnectionStrings__DefaultConnection.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -80,6 +82,7 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+var appConfiguration = app.Configuration;
 
 try
 {
@@ -126,16 +129,29 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapGet("/health/db", async (AppDbContext db) =>
 {
+    var hasDatabaseUrl = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DATABASE_URL"));
+    var hasConnectionString = !string.IsNullOrWhiteSpace(
+        appConfiguration.GetConnectionString("DefaultConnection"));
+
     try
     {
         var ok = await db.Database.CanConnectAsync();
         return ok
-            ? Results.Ok(new { database = "connected" })
+            ? Results.Ok(new
+            {
+                database = "connected",
+                hasDatabaseUrl,
+                hasConnectionString,
+            })
             : Results.Problem("Database connection failed.", statusCode: 503);
     }
     catch (Exception ex)
     {
-        return Results.Problem(ex.Message, statusCode: 503);
+        return Results.Problem(ex.Message, statusCode: 503, extensions: new Dictionary<string, object?>
+        {
+            ["hasDatabaseUrl"] = hasDatabaseUrl,
+            ["hasConnectionString"] = hasConnectionString,
+        });
     }
 });
 
