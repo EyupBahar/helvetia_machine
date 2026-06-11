@@ -4,7 +4,6 @@ using HelvetiaApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,11 +22,9 @@ if (string.IsNullOrWhiteSpace(rawConnection))
 
 if (IsPostgresUrl(rawConnection))
 {
-    var dataSourceBuilder = new NpgsqlDataSourceBuilder(rawConnection);
-    ConfigureRenderSsl(dataSourceBuilder.ConnectionStringBuilder);
-    var dataSource = dataSourceBuilder.Build();
-    builder.Services.AddSingleton(dataSource);
-    builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(dataSource));
+    var connectionString = NormalizePostgresUrl(rawConnection);
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(connectionString));
 }
 else
 {
@@ -192,12 +189,6 @@ app.Lifetime.ApplicationStarted.Register(() =>
     });
 });
 
-app.Lifetime.ApplicationStopped.Register(() =>
-{
-    var dataSource = app.Services.GetService<NpgsqlDataSource>();
-    dataSource?.Dispose();
-});
-
 app.Run();
 
 static bool IsPostgresUrl(string connection) =>
@@ -212,11 +203,20 @@ static string? TryGetDatabaseHost(string? databaseUrl)
     return new Uri(databaseUrl).Host;
 }
 
-static void ConfigureRenderSsl(NpgsqlConnectionStringBuilder builder)
+static string NormalizePostgresUrl(string connection)
 {
-    var host = builder.Host ?? string.Empty;
+    var uri = new Uri(connection);
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var username = Uri.UnescapeDataString(userInfo[0]);
+    var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+    var database = uri.AbsolutePath.TrimStart('/');
+    var port = uri.Port > 0 ? uri.Port : 5432;
+    var host = uri.Host;
 
-    // External Render URLs need TLS; internal private-network URLs use Prefer.
-    if (host.Contains(".render.com", StringComparison.OrdinalIgnoreCase))
-        builder.SslMode = SslMode.Require;
+    var sslMode = host.Contains(".render.com", StringComparison.OrdinalIgnoreCase)
+        ? "Require"
+        : "Prefer";
+
+    return
+        $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode={sslMode};Trust Server Certificate=true";
 }
