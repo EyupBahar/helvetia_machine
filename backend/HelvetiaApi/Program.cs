@@ -11,9 +11,12 @@ var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(port))
     builder.WebHost.UseUrls($"http://*:{port}");
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? ConvertDatabaseUrl(Environment.GetEnvironmentVariable("DATABASE_URL"));
+
 if (string.IsNullOrWhiteSpace(connectionString))
-    throw new InvalidOperationException("ConnectionStrings__DefaultConnection environment variable is required.");
+    throw new InvalidOperationException(
+        "Set ConnectionStrings__DefaultConnection or link a Render PostgreSQL database (DATABASE_URL).");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -119,3 +122,21 @@ app.MapGet("/health/db", async (AppDbContext db) =>
 });
 
 app.Run();
+
+static string? ConvertDatabaseUrl(string? databaseUrl)
+{
+    if (string.IsNullOrWhiteSpace(databaseUrl))
+        return null;
+
+    if (!databaseUrl.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+        && !databaseUrl.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+        return databaseUrl;
+
+    var uri = new Uri(databaseUrl);
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var username = Uri.UnescapeDataString(userInfo[0]);
+    var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+    var database = uri.AbsolutePath.TrimStart('/');
+
+    return $"Host={uri.Host};Port={uri.Port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+}
