@@ -43,6 +43,14 @@ const emptyItem = (clientKey: string): EditorImage => ({
 export default function MultiImageEditor({ initialItems, onChange }: MultiImageEditorProps) {
   const [items, setItems] = useState<EditorImage[]>(() => initItems(initialItems));
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
+  const [customTextKeys, setCustomTextKeys] = useState<Set<string>>(
+    () =>
+      new Set(
+        initItems(initialItems)
+          .filter((item) => item.title.trim() || item.description.trim())
+          .map((item) => item.clientKey)
+      )
+  );
   const listEndRef = useRef<HTMLDivElement>(null);
 
   const updateItems = (next: EditorImage[]) => {
@@ -78,6 +86,11 @@ export default function MultiImageEditor({ initialItems, onChange }: MultiImageE
       next.delete(item.clientKey);
       return next;
     });
+    setCustomTextKeys((prev) => {
+      const next = new Set(prev);
+      next.delete(item.clientKey);
+      return next;
+    });
   };
 
   const addItem = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -87,6 +100,22 @@ export default function MultiImageEditor({ initialItems, onChange }: MultiImageE
     updateItems([...items, emptyItem(clientKey)]);
     setExpandedKeys((prev) => new Set(prev).add(clientKey));
     requestAnimationFrame(() => listEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+  };
+
+  const hasCustomText = (item: EditorImage) => customTextKeys.has(item.clientKey);
+
+  const enableCustomText = (clientKey: string) => {
+    setCustomTextKeys((prev) => new Set(prev).add(clientKey));
+  };
+
+  const disableCustomText = (index: number, clientKey: string) => {
+    updateItem(index, "title", "");
+    updateItem(index, "description", "");
+    setCustomTextKeys((prev) => {
+      const next = new Set(prev);
+      next.delete(clientKey);
+      return next;
+    });
   };
 
   return (
@@ -146,20 +175,48 @@ export default function MultiImageEditor({ initialItems, onChange }: MultiImageE
                   </Button>
                 </div>
               </div>
-              <input
-                type="text"
-                placeholder="Başlık"
-                value={item.title}
-                onChange={(e) => updateItem(index, "title", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm bg-white"
-              />
-              <textarea
-                placeholder="Açıklama / Özellikler"
-                rows={2}
-                value={item.description}
-                onChange={(e) => updateItem(index, "description", e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none resize-none text-sm bg-white"
-              />
+              {hasCustomText(item) ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Başlık"
+                    value={item.title}
+                    onChange={(e) => updateItem(index, "title", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm bg-white"
+                  />
+                  <textarea
+                    placeholder="Açıklama / Özellikler"
+                    rows={2}
+                    value={item.description}
+                    onChange={(e) => updateItem(index, "description", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none resize-none text-sm bg-white"
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="!px-2 !py-1 text-xs"
+                      onClick={() => disableCustomText(index, item.clientKey)}
+                    >
+                      Varsayılanı Kullan
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-gray-300 bg-white p-3">
+                  <p className="text-xs text-gray-600">
+                    Başlık ve açıklama otomatik olarak alt kategori bilgisinden alınır.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="!px-2 !py-1 text-xs shrink-0"
+                    onClick={() => enableCustomText(item.clientKey)}
+                  >
+                    Özel Metin Ekle
+                  </Button>
+                </div>
+              )}
               <FileUpload
                 value={item.imageUrl}
                 onChange={(url) => updateItem(index, "imageUrl", url)}

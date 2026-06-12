@@ -149,11 +149,21 @@ export default function AdminPanel({
 
     setSubmitting(true);
     try {
+      const fallbackTitle = subCategoryForm.name.trim();
+      const fallbackDescription = subCategoryForm.description.trim();
+      const preparedImages = subCategoryForm.images
+        .filter((img) => img.imageUrl)
+        .map((img) => ({
+          ...img,
+          title: img.title.trim() || fallbackTitle,
+          description: img.description.trim() || fallbackDescription,
+        }));
+
       const payload = {
         name: subCategoryForm.name,
         description: subCategoryForm.description,
         categoryId: subCategoryForm.categoryId,
-        images: subCategoryForm.images.filter((img) => img.imageUrl),
+        images: preparedImages,
       };
 
       if (editingSubCategory) {
