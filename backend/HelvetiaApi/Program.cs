@@ -47,6 +47,13 @@ var jwtKey = jwtSettings["Key"];
 if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
     throw new InvalidOperationException("Jwt__Key environment variable must be at least 32 characters.");
 
+// Admin credentials live only in the environment (or dotnet user-secrets locally), never in the repo.
+var adminUsername = builder.Configuration["Admin:Username"]?.Trim();
+var adminPassword = builder.Configuration["Admin:Password"];
+if (string.IsNullOrWhiteSpace(adminUsername) || string.IsNullOrEmpty(adminPassword) || adminPassword.Length < 12)
+    throw new InvalidOperationException(
+        "Admin__Username and Admin__Password (at least 12 characters) environment variables must be set.");
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -187,7 +194,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
         {
             await using var scope = app.Services.CreateAsyncScope();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            await DbSeeder.SeedAsync(context);
+            await DbSeeder.SeedAsync(context, adminUsername, adminPassword);
             app.Logger.LogInformation("Database seed completed.");
         }
         catch (Exception ex)

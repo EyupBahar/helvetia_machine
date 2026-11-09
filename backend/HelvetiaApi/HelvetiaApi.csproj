@@ -4,6 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>helvetia-api-7c1e2f4a-3b8d-4e6a-9f21-5d0c8a6b4e19</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

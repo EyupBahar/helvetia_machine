@@ -6,19 +6,12 @@ namespace HelvetiaApi.Data;
 
 public static class DbSeeder
 {
-    public static async Task SeedAsync(AppDbContext context)
+    public static async Task SeedAsync(AppDbContext context, string adminUsername, string adminPassword)
     {
         await context.Database.EnsureCreatedAsync();
         await EnsureSchemaUpdatesAsync(context);
 
-        if (!await context.Admins.AnyAsync())
-        {
-            context.Admins.Add(new Admin
-            {
-                Username = "admin",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123")
-            });
-        }
+        await EnsureAdminAsync(context, adminUsername, adminPassword);
 
         if (!await context.Categories.AnyAsync())
         {
@@ -128,6 +121,32 @@ public static class DbSeeder
         }
 
         await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// The admin account comes only from configuration (Admin__Username / Admin__Password),
+    /// never from source code. It is reconciled on every start, so rotating the password in the
+    /// environment takes effect with the next deploy. The app has exactly one admin: accounts
+    /// with any other username are removed, which also retires previously seeded credentials.
+    /// </summary>
+    private static async Task EnsureAdminAsync(AppDbContext context, string username, string password)
+    {
+        var admin = await context.Admins.FirstOrDefaultAsync(a => a.Username == username);
+        if (admin is null)
+        {
+            context.Admins.Add(new Admin
+            {
+                Username = username,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password)
+            });
+        }
+        else if (!BCrypt.Net.BCrypt.Verify(password, admin.PasswordHash))
+        {
+            admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+        }
+
+        var formerAdmins = await context.Admins.Where(a => a.Username != username).ToListAsync();
+        context.Admins.RemoveRange(formerAdmins);
     }
 
     private static async Task EnsureSchemaUpdatesAsync(AppDbContext context)

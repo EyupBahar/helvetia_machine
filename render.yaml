@@ -8,3 +8,11 @@ services:
       name: helvetia-uploads
       mountPath: /app/wwwroot/uploads
       sizeGB: 1
+    # Secrets are set in the Render dashboard, never committed.
+    envVars:
+      - key: Jwt__Key
+        sync: false
+      - key: Admin__Username
+        sync: false
+      - key: Admin__Password
+        sync: false
